@@ -12,6 +12,17 @@ public class PlayFabManager : MonoBehaviour
    public uiscript uis;
 
     public TMP_Text welcomeText;
+     
+    public characterScript[] characterBoxes;
+
+    public List<character> characters = new List<character>();
+
+    [Header("Inputfields")]
+
+    public TMP_InputField email;
+    public TMP_InputField Password;
+    public TMP_Text logeText;
+
     void Start()
     {
         login();
@@ -41,12 +52,57 @@ public class PlayFabManager : MonoBehaviour
         Debug.Log("Succesful login/account create!");
         GetAppearance();
         GetTitleData();
+         GetCharacters();
     }
     void OnError(PlayFabError error)
     {
         Debug.Log("Error while login/account create!");
     }
+     public void LoginButtton()
+    {
+        var request = new LoginWithEmailAddressRequest
+        {
+            Email = email.text,
+            Password = Password.text,
+        };
+        PlayFabClientAPI.LoginWithEmailAddress(request, OnSuccesLogin, OnError);
+    }
+        public void OnSuccesLogin(LoginResult result)
+    {
+        logeText.text = "Login Succesful";
+    }
+     public void RegisterAndLoginButtton()
+    {
+        if (Password.text.Length<6)
+        {
+            logeText.text = "Password is too short";
+            return;
+        }
+        var request = new RegisterPlayFabUserRequest
+        {           
+            Email = email.text,
+            Password = Password.text,
+            RequireBothUsernameAndEmail = false
+            
+            
+        };
+        PlayFabClientAPI.RegisterPlayFabUser(request, OnRegisterSucces, OnError);
+    }
 
+     public void OnRegisterSucces(RegisterPlayFabUserResult result)
+    {
+        logeText.text = "Register and login in";
+    }
+        
+        public void ResetPasswordButtton()
+    {
+        var request = new SendAccountRecoveryEmailRequest { Email = email.text, TitleId = "7AE00" };
+        PlayFabClientAPI.SendAccountRecoveryEmail(request, onPasswordReset, OnError);
+    }
+    void onPasswordReset(SendAccountRecoveryEmailResult result  )
+    {
+        Debug.Log("Password reset mail sent!");
+    }
     public void SendLeaderBoard(int score)
     {
         var request = new UpdatePlayerStatisticsRequest
@@ -146,6 +202,45 @@ public class PlayFabManager : MonoBehaviour
           //  result.Data["Message"];
             welcomeText.text = result.Data["Message"].ToString();
         }
+    }
+
+    public void SaveCharacters()
+    {
+    
+        foreach (var item in characterBoxes)
+        {
+            characters.Add(item.ReturnCharacter());
+        
+        }
+    
+        Debug.Log(JsonUtility.ToJson(characters));
+        var request = new UpdateUserDataRequest
+        {
+            Data= new Dictionary<string, string> {
+
+                {"characters",JsonUtility.ToJson(characters) }
+            }
+        };
+        PlayFabClientAPI.UpdateUserData(request,OnDataSend,OnError);
+    }
+
+    public void GetCharacters()
+    {
+        PlayFabClientAPI.GetUserData(new GetUserDataRequest(), OnCharacterDataReceived, OnError);
+    }
+    public void OnCharacterDataReceived(GetUserDataResult result)
+    {
+        if (result.Data != null && result.Data.ContainsKey("characters"))
+        {
+            List<character> list = new();
+            list = JsonUtility.FromJson<List<character>>(result.Data["characters"].Value);
+
+            for (int i = 0; i < characterBoxes.Length; i++)
+            {
+                characterBoxes[i].setUi(characters[i]);
+            }
+        }
+    
     }
 
 }
